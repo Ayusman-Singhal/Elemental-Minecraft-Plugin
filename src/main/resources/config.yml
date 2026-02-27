@@ -1,0 +1,117 @@
+# ═══════════════════════════════════════════════════════════════
+# ServerCore - Ability Balancing Configuration
+# ═══════════════════════════════════════════════════════════════
+
+combat:
+  # Penalty when a combat-tagged player logs out.
+  # Options: KILL | NONE | STRIP_HEALTH
+  logout_penalty: KILL
+
+elements:
+  FIRE:
+    BASIC:
+      cooldown_ms: 2000
+      damage: 6.0
+      reach: 4.0
+    SECONDARY:
+      cooldown_ms: 5000
+      damage: 8.0
+      knockback: 0.6
+      reach: 4.5
+    SPECIAL_SIMPLE:
+      cooldown_ms: 8000
+      damage: 10.0
+      radius: 3.0
+      knockback: 1.0
+    SPECIAL_CHARGED:
+      cooldown_ms: 8000
+      damage: 12.0
+      radius: 3.0
+      knockback: 1.2
+    MOBILITY:
+      cooldown_ms: 3000
+      damage: 0
+      velocity_magnitude: 2.0
+      velocity_y: 0.35
+      immunity_ticks: 12
+
+  WATER:
+    BASIC:
+      cooldown_ms: 2000
+      damage: 5.0
+      reach: 4.0
+    SECONDARY:
+      cooldown_ms: 5000
+      damage: 6.0
+      knockback: 1.5
+      reach: 4.5
+    SPECIAL_SIMPLE:
+      cooldown_ms: 8000
+      damage: 7.0
+      radius: 3.0
+      knockback: 1.0
+    SPECIAL_CHARGED:
+      cooldown_ms: 10000
+      damage: 9.0
+      radius: 3.0
+      knockback: 1.4
+    MOBILITY:
+      cooldown_ms: 2500
+      damage: 0
+      velocity_magnitude: 1.4
+      velocity_y: 0.15
+      immunity_ticks: 0
+
+  EARTH:
+    BASIC:
+      cooldown_ms: 2000
+      damage: 5.5
+      knockback: 0.3
+      reach: 3.5
+    SECONDARY:
+      cooldown_ms: 5000
+      damage: 2.0
+      reach: 4.0
+    SPECIAL_SIMPLE:
+      cooldown_ms: 8000
+      damage: 7.0
+      radius: 3.0
+      knockback: 0.5
+    SPECIAL_CHARGED:
+      cooldown_ms: 10000
+      damage: 10.0
+      radius: 3.0
+      knockback: 0.8
+    MOBILITY:
+      cooldown_ms: 5000
+      damage: 0
+      velocity_magnitude: 1.1
+      velocity_y: 0.3
+      immunity_ticks: 0
+
+  AIR:
+    BASIC:
+      cooldown_ms: 1500
+      damage: 4.0
+      reach: 8.0
+    SECONDARY:
+      cooldown_ms: 4000
+      damage: 3.0
+      knockback: 0.3
+      reach: 6.0
+    SPECIAL_SIMPLE:
+      cooldown_ms: 7000
+      damage: 5.0
+      radius: 3.0
+      knockback: 1.2
+    SPECIAL_CHARGED:
+      cooldown_ms: 9000
+      damage: 8.0
+      radius: 3.0
+      knockback: 0.5
+    MOBILITY:
+      cooldown_ms: 2000
+      damage: 0
+      velocity_magnitude: 2.3
+      velocity_y: 0.2
+      immunity_ticks: 0
