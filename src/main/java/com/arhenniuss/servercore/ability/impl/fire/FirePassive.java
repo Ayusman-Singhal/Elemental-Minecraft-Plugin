@@ -8,6 +8,8 @@ import com.arhenniuss.servercore.ability.TargetMode;
 import com.arhenniuss.servercore.element.Element;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -61,6 +63,10 @@ public class FirePassive implements PassiveAbility {
         if (player.getFireTicks() > 0) {
             player.setFireTicks(0);
         }
+
+        // Apply Fire Resistance (300 ticks = 15s, refreshed every second to avoid blinking)
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.FIRE_RESISTANCE, 300, 0, true, false, true));
 
         // Occasional flame particles (~30% chance per tick cycle)
         if (ThreadLocalRandom.current().nextFloat() < 0.3f) {

@@ -41,12 +41,17 @@ public class DoubleJumpGroundTask implements Runnable {
                 continue;
 
             // On ground → enable allowFlight (allows double-jump input)
-            if (player.isOnGround()) {
+            if (isGrounded(player)) {
                 if (!player.getAllowFlight()) {
                     player.setAllowFlight(true);
                 }
             }
             // Don't disable in air — the toggle event handler does that
         }
+    }
+
+    private boolean isGrounded(Player player) {
+        // Sample just below feet to avoid deprecated Entity#isOnGround().
+        return !player.getLocation().clone().subtract(0.0, 0.1, 0.0).getBlock().isPassable();
     }
 }

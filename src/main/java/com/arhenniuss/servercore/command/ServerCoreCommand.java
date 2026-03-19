@@ -95,12 +95,15 @@ public class ServerCoreCommand implements CommandExecutor, TabCompleter {
     private void handleDebug(CommandSender sender) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(ChatUtil.format("§cOnly players can use this command."));
+            // Also log to console
+            Bukkit.getLogger().info("[ServerCore] Only players can use this command.");
             return;
         }
 
         boolean enabled = debugManager.toggle(player);
-        player.sendMessage(ChatUtil.format(
-                enabled ? "§aDebug mode §eenabled§a." : "§cDebug mode §edisabled§c."));
+        String message = enabled ? "§aDebug mode §eenabled§a." : "§cDebug mode §edisabled§c.";
+        player.sendMessage(ChatUtil.format(message));
+        Bukkit.getLogger().info("[ServerCore] Debug mode " + (enabled ? "enabled" : "disabled") + " for player " + player.getName());
     }
 
     private void handleReload(CommandSender sender) {

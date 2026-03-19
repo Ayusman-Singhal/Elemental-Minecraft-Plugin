@@ -1,5 +1,6 @@
 package com.arhenniuss.servercore.listener;
 
+import com.arhenniuss.servercore.combat.CooldownDisplayService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -12,20 +13,29 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 
 /**
  * Handles Training Dummy interactions:
  * - Displays damage dealt to the attacker's action bar
+ * - Temporarily suppresses cooldown HUD so damage text remains visible
  * - Prevents death (resets health)
  * - Prevents knockback (resets velocity)
  * - Tracks total damage per dummy session
  */
 public class DummyListener implements Listener {
 
-    private final NamespacedKey dummyKey;
+    private static final long DAMAGE_DISPLAY_SUPPRESS_MS = 900L;
 
-    public DummyListener(NamespacedKey dummyKey) {
+    private final NamespacedKey dummyKey;
+    private final JavaPlugin plugin;
+    private final CooldownDisplayService cooldownDisplayService;
+
+    public DummyListener(NamespacedKey dummyKey, JavaPlugin plugin,
+            CooldownDisplayService cooldownDisplayService) {
         this.dummyKey = dummyKey;
+        this.plugin = plugin;
+        this.cooldownDisplayService = cooldownDisplayService;
     }
 
     /**
@@ -59,18 +69,20 @@ public class DummyListener implements Listener {
         // Display damage to attacker (if player-caused)
         if (event instanceof EntityDamageByEntityEvent byEntity) {
             if (byEntity.getDamager() instanceof Player attacker) {
-                showDamageDisplay(attacker, damage);
+                // Reserve action-bar window for dummy damage display.
+                cooldownDisplayService.suppressFor(attacker.getUniqueId(), DAMAGE_DISPLAY_SUPPRESS_MS);
+                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                    showDamageDisplay(attacker, damage);
+                }, 1L);
             }
         }
 
         // Reset velocity on next tick to prevent knockback
-        org.bukkit.Bukkit.getScheduler().runTaskLater(
-                org.bukkit.Bukkit.getPluginManager().getPlugin("ServerCore"),
-                () -> {
-                    if (dummy.isValid()) {
-                        dummy.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
-                    }
-                }, 1L);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (dummy.isValid()) {
+                dummy.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
+            }
+        }, 1L);
     }
 
     /**

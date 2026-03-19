@@ -60,9 +60,11 @@ public class WaterPassive implements PassiveAbility {
     public void onTick(AbilityContext context) {
         Player player = context.getPlayer();
 
-        // Keep Water Breathing active (30 ticks = 1.5s, refreshed every second)
+        // Keep Water Breathing active (300 ticks = 15s, refreshed every second to avoid blinking)
         player.addPotionEffect(new PotionEffect(
-                PotionEffectType.WATER_BREATHING, 30, 0, true, false, false));
+                PotionEffectType.WATER_BREATHING, 300, 0, true, false, true));
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.DOLPHINS_GRACE, 300, 0, true, false, true));
 
         // Occasional bubble particles (~30% chance per tick cycle)
         if (ThreadLocalRandom.current().nextFloat() < 0.3f) {

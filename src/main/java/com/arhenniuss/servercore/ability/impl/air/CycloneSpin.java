@@ -57,30 +57,48 @@ public class CycloneSpin implements Ability {
         AbilityStats stats = config.getStats(Element.AIR, AbilityType.SPECIAL_SIMPLE);
         double radius = stats.radius();
 
-        // Swirling wind ring
-        int points = 32;
-        for (int i = 0; i < points; i++) {
-            double angle = (2 * Math.PI / points) * i;
-            double x = Math.cos(angle) * radius;
-            double z = Math.sin(angle) * radius;
-            player.getWorld().spawnParticle(
-                    Particle.CLOUD,
-                    player.getLocation().add(x, 0.6, z),
-                    2, 0.05, 0.1, 0.05, 0.03);
-            player.getWorld().spawnParticle(
-                    Particle.SWEEP_ATTACK,
-                    player.getLocation().add(x, 0.8, z),
-                    1, 0, 0, 0, 0);
+        // Multi-layer swirling wind ring for more intensity
+        for (int layer = 0; layer < 3; layer++) {
+            int points = 40;
+            for (int i = 0; i < points; i++) {
+                double angle = (2 * Math.PI / points) * i;
+                double x = Math.cos(angle) * (radius - layer * 0.3);
+                double z = Math.sin(angle) * (radius - layer * 0.3);
+                double y = 0.5 + layer * 0.3;
+                
+                player.getWorld().spawnParticle(
+                        Particle.CLOUD,
+                        player.getLocation().add(x, y, z),
+                        4, 0.1, 0.2, 0.1, 0.05);
+                player.getWorld().spawnParticle(
+                        Particle.SWEEP_ATTACK,
+                        player.getLocation().add(x, y + 0.2, z),
+                        2, 0.1, 0.1, 0.1, 0.02);
+            }
         }
 
-        // Inner vortex
-        player.getWorld().spawnParticle(
-                Particle.CLOUD,
-                player.getLocation().add(0, 0.5, 0),
-                10, 0.3, 0.3, 0.3, 0.05);
+        // Vertical vortex column
+        for (double y = 0.2; y <= 2.5; y += 0.3) {
+            player.getWorld().spawnParticle(
+                    Particle.CLOUD,
+                    player.getLocation().add(0, y, 0),
+                    15, 0.5, 0.1, 0.5, 0.08);
+        }
 
-        // Cyclone sounds
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PHANTOM_FLAP, 1.0f, 0.4f);
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 0.6f, 1.2f);
+        // Ground-level swirl
+        for (int i = 0; i < 24; i++) {
+            double angle = (2 * Math.PI / 24) * i;
+            double x = Math.cos(angle) * (radius * 0.5);
+            double z = Math.sin(angle) * (radius * 0.5);
+            player.getWorld().spawnParticle(
+                    Particle.CLOUD,
+                    player.getLocation().add(x, 0.1, z),
+                    3, 0.1, 0.05, 0.1, 0.03);
+        }
+
+        // Powerful cyclone sounds
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PHANTOM_FLAP, 1.5f, 0.3f);
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.0f, 0.8f);
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_WIND_BURST, 1.2f, 1.0f);
     }
 }

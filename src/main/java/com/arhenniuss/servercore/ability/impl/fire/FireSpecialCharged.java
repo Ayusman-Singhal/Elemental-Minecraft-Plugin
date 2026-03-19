@@ -57,25 +57,47 @@ public class FireSpecialCharged implements Ability {
         AbilityStats stats = config.getStats(Element.FIRE, AbilityType.SPECIAL_CHARGED);
         double radius = stats.radius();
 
-        // Large flame ring particle effect
-        for (int i = 0; i < 72; i++) {
-            double angle = Math.toRadians(i * 5);
-            double x = Math.cos(angle) * radius;
-            double z = Math.sin(angle) * radius;
-            player.getWorld().spawnParticle(
-                    Particle.FLAME,
-                    player.getLocation().add(x, 0.2, z),
-                    3, 0.1, 0.3, 0.1, 0.02);
+        // Large flame ring particle effect with multiple layers
+        for (int layer = 0; layer < 3; layer++) {
+            for (int i = 0; i < 72; i++) {
+                double angle = Math.toRadians(i * 5);
+                double x = Math.cos(angle) * (radius - layer * 0.5);
+                double z = Math.sin(angle) * (radius - layer * 0.5);
+                double y = 0.2 + layer * 0.3;
+                player.getWorld().spawnParticle(
+                        Particle.FLAME,
+                        player.getLocation().add(x, y, z),
+                        5, 0.2, 0.5, 0.2, 0.05);
+            }
         }
 
-        // Additional vertical burst at center
+        // Additional vertical burst at center with explosion effect
         player.getWorld().spawnParticle(
                 Particle.LAVA,
                 player.getLocation().add(0, 1, 0),
-                20, 1.0, 0.5, 1.0, 0);
+                30, 1.5, 1.0, 1.5, 0.1);
+        
+        // Explosion particles
+        player.getWorld().spawnParticle(
+                Particle.EXPLOSION_HUGE,
+                player.getLocation().add(0, 1, 0),
+                3, 1.0, 1.0, 1.0, 0);
 
-        // Sound
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.5f, 0.5f);
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.0f, 0.5f);
+        // Multiple sounds for more impact
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.5f);
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.5f, 0.3f);
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 0.1f);
+        
+        // Screen shake effect (visual cue)
+        for (Player nearby : player.getWorld().getPlayers()) {
+            if (nearby.getLocation().distance(player.getLocation()) <= radius * 2) {
+                // This would require a client-side plugin or packet manipulation
+                // For now, we'll just add more visual cues
+                nearby.getWorld().spawnParticle(
+                        Particle.EXPLOSION_NORMAL,
+                        nearby.getLocation(),
+                        5, 0.1, 0.1, 0.1, 0.1);
+            }
+        }
     }
 }

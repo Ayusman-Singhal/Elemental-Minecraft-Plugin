@@ -57,6 +57,7 @@ import com.arhenniuss.servercore.listener.ability.AirPassiveListener;
 import com.arhenniuss.servercore.listener.ability.DoubleJumpGroundTask;
 import com.arhenniuss.servercore.listener.ability.EarthPassiveListener;
 import com.arhenniuss.servercore.listener.ability.FirePassiveListener;
+import com.arhenniuss.servercore.listener.ability.MobilityLandingListener;
 import com.arhenniuss.servercore.listener.ability.WaterPassiveListener;
 import com.arhenniuss.servercore.listener.combat.CombatDamageListener;
 import com.arhenniuss.servercore.listener.combat.CombatTagListener;
@@ -149,11 +150,16 @@ public final class ServerCore extends JavaPlugin {
                 reactionService.registerRule(new WaterExtendsRootRule(statusService));
                 reactionService.registerRule(new RootedSlowsAirMobilityRule(playerDataManager, cooldownManager));
 
+                // Mobility landing listener — handles landing damage from double jumps
+                MobilityLandingListener mobilityLandingListener = new MobilityLandingListener(
+                                playerDataManager);
+
                 // Ability service — sole owner of damage, knockback, targeting, reactions
                 AbilityService abilityService = new AbilityService(
                                 registry, cooldownManager, playerDataManager,
                                 damageManager, debugManager, balanceConfig,
-                                statusService, reactionService, reachHelper, this);
+                                statusService, reactionService, reachHelper, this,
+                                mobilityLandingListener);
 
                 // ── All Listeners ───────────────────────────────────────────
 
@@ -172,7 +178,11 @@ public final class ServerCore extends JavaPlugin {
 
                 // Unified ability input listener (input-only, zero combat logic)
                 getServer().getPluginManager().registerEvents(
-                                new AbilityInputListener(abilityService), this);
+                                new AbilityInputListener(abilityService, playerDataManager), this);
+
+                // Mobility landing damage listener
+                getServer().getPluginManager().registerEvents(
+                                mobilityLandingListener, this);
 
                 // Double-jump ground task (enables allowFlight for mobility input)
                 new DoubleJumpGroundTask(playerDataManager).register(this);
@@ -210,7 +220,7 @@ public final class ServerCore extends JavaPlugin {
 
                 // Dummy listener
                 getServer().getPluginManager().registerEvents(
-                                new DummyListener(dummyCommand.getDummyKey()), this);
+                                new DummyListener(dummyCommand.getDummyKey(), this, cooldownDisplay), this);
 
                 // ── Tasks ───────────────────────────────────────────────────
 

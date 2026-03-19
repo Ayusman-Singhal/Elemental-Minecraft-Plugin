@@ -50,20 +50,32 @@ public class AbilityDebugManager {
      */
     public void sendDebug(Player player, Ability ability, AbilityStats stats,
             double finalDamage, long remainingCooldown) {
-        player.sendMessage(ChatUtil.format("§8[§bDEBUG§8] §e" + ability.getElement().name()
-                + " → " + formatTypeName(ability.getType().name())));
-        player.sendMessage(ChatUtil.format("§7  Category: §f" + ability.getCooldownCategory().name()));
-        player.sendMessage(ChatUtil.format("§7  Base Damage: §f" + stats.damage()));
-        player.sendMessage(ChatUtil.format("§7  Final Damage: §f" + String.format("%.1f", finalDamage)));
-        player.sendMessage(ChatUtil.format("§7  Cooldown: §f" + remainingCooldown + "ms"));
+        String msg1 = "§8[§bDEBUG§8] §e" + ability.getElement().name() + " → " + formatTypeName(ability.getType().name());
+        String msg2 = "§7  Category: §f" + ability.getCooldownCategory().name();
+        String msg3 = "§7  Base Damage: §f" + stats.damage();
+        String msg4 = "§7  Final Damage: §f" + String.format("%.1f", finalDamage);
+        String msg5 = "§7  Cooldown: §f" + remainingCooldown + "ms";
+        
+        player.sendMessage(ChatUtil.format(msg1));
+        player.sendMessage(ChatUtil.format(msg2));
+        player.sendMessage(ChatUtil.format(msg3));
+        player.sendMessage(ChatUtil.format(msg4));
+        player.sendMessage(ChatUtil.format(msg5));
+        
+        org.bukkit.Bukkit.getLogger().info("[DEBUG] " + player.getName() + " - " + ability.getElement().name() + " " + ability.getType().name() + 
+            " | Base Dmg: " + stats.damage() + " | Final Dmg: " + String.format("%.1f", finalDamage) + " | CD: " + remainingCooldown + "ms");
+
         if (stats.knockback() > 0) {
             player.sendMessage(ChatUtil.format("§7  Knockback: §f" + stats.knockback()));
+            org.bukkit.Bukkit.getLogger().info("[DEBUG] " + player.getName() + " - Knockback: " + stats.knockback());
         }
         if (stats.radius() > 0) {
             player.sendMessage(ChatUtil.format("§7  Radius: §f" + stats.radius()));
+            org.bukkit.Bukkit.getLogger().info("[DEBUG] " + player.getName() + " - Radius: " + stats.radius());
         }
         if (stats.reach() > 0) {
             player.sendMessage(ChatUtil.format("§7  Reach: §f" + stats.reach()));
+            org.bukkit.Bukkit.getLogger().info("[DEBUG] " + player.getName() + " - Reach: " + stats.reach());
         }
     }
 
@@ -72,12 +84,15 @@ public class AbilityDebugManager {
      */
     public void sendReactionDebug(Player player, ReactionResult result) {
         player.sendMessage(ChatUtil.format("§8[§dREACTION§8] §6Triggered:"));
+        org.bukkit.Bukkit.getLogger().info("[REACTION] " + player.getName() + " triggered reactions:");
         for (String name : result.getTriggeredReactionNames()) {
             player.sendMessage(ChatUtil.format("§7  ⚡ §f" + name));
+            org.bukkit.Bukkit.getLogger().info("  - " + name);
         }
         if (result.getTotalBonusDamage() > 0) {
             player.sendMessage(ChatUtil.format("§7  Bonus Damage: §c+"
                     + String.format("%.1f", result.getTotalBonusDamage())));
+            org.bukkit.Bukkit.getLogger().info("  - Bonus Damage: +" + String.format("%.1f", result.getTotalBonusDamage()));
         }
     }
 
@@ -91,9 +106,11 @@ public class AbilityDebugManager {
         player.sendMessage(ChatUtil.format("§8[§aMOBILITY§8] §6Self-Targeted"));
         player.sendMessage(ChatUtil.format("§7  Velocity: §f"
                 + String.format("%.2f", magnitude)));
+        org.bukkit.Bukkit.getLogger().info("[MOBILITY] " + player.getName() + " - Velocity: " + String.format("%.2f", magnitude));
         if (context.getImmunityTicks() > 0) {
             player.sendMessage(ChatUtil.format("§7  Immunity: §f"
                     + context.getImmunityTicks() + " ticks"));
+            org.bukkit.Bukkit.getLogger().info("[MOBILITY] " + player.getName() + " - Immunity: " + context.getImmunityTicks() + " ticks");
         }
     }
 

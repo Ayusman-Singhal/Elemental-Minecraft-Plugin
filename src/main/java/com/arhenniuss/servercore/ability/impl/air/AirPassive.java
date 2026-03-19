@@ -8,6 +8,8 @@ import com.arhenniuss.servercore.ability.TargetMode;
 import com.arhenniuss.servercore.element.Element;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -52,6 +54,13 @@ public class AirPassive implements PassiveAbility {
     @Override
     public void onTick(AbilityContext context) {
         Player player = context.getPlayer();
+
+        // Apply Slow Falling (300 ticks = 15s, refreshed every second to avoid blinking)
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.SLOW_FALLING, 300, 0, true, false, true));
+        // Apply Speed I
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.SPEED, 300, 0, true, false, true));
 
         // Occasional wind particles (~20% chance per tick cycle)
         if (ThreadLocalRandom.current().nextFloat() < 0.20f) {

@@ -22,6 +22,7 @@ public class CooldownDisplayService {
     private final CooldownManager cooldownManager;
     private final PlayerDataManager playerDataManager;
     private final Map<UUID, CooldownManager.CooldownSnapshot> lastSnapshots;
+    private final Map<UUID, Long> suppressUntil;
     private final StringBuilder sb;
 
     public CooldownDisplayService(CooldownManager cooldownManager,
@@ -29,6 +30,7 @@ public class CooldownDisplayService {
         this.cooldownManager = cooldownManager;
         this.playerDataManager = playerDataManager;
         this.lastSnapshots = new HashMap<>();
+        this.suppressUntil = new HashMap<>();
         this.sb = new StringBuilder(120);
     }
 
@@ -37,13 +39,24 @@ public class CooldownDisplayService {
      * Sends cooldown HUD if changed. Plays ready ping on transition.
      */
     public void tick() {
+        long now = System.currentTimeMillis();
         for (Player player : Bukkit.getOnlinePlayers()) {
+            UUID uuid = player.getUniqueId();
+
+            Long suppressedUntilAt = suppressUntil.get(uuid);
+            if (suppressedUntilAt != null) {
+                if (now < suppressedUntilAt) {
+                    continue;
+                }
+                suppressUntil.remove(uuid);
+            }
+
             Element element = playerDataManager.getElement(player.getUniqueId());
             if (element == null)
                 continue;
 
             CooldownManager.CooldownSnapshot snapshot = cooldownManager.getSnapshot(player);
-            CooldownManager.CooldownSnapshot last = lastSnapshots.get(player.getUniqueId());
+            CooldownManager.CooldownSnapshot last = lastSnapshots.get(uuid);
 
             // Only send if changed (or first time)
             if (last != null && snapshot.equals(last)) {
@@ -61,7 +74,7 @@ public class CooldownDisplayService {
                 }
             }
 
-            lastSnapshots.put(player.getUniqueId(), snapshot);
+            lastSnapshots.put(uuid, snapshot);
             player.sendActionBar(buildActionBar(snapshot, element));
         }
     }
@@ -96,5 +109,19 @@ public class CooldownDisplayService {
      */
     public void clearPlayer(UUID uuid) {
         lastSnapshots.remove(uuid);
+        suppressUntil.remove(uuid);
+    }
+
+    /**
+     * Temporarily suppresses cooldown HUD updates for a player.
+     * Useful when another action bar message (e.g. dummy damage) should remain visible.
+     */
+    public void suppressFor(UUID uuid, long durationMs) {
+        if (durationMs <= 0) {
+            return;
+        }
+
+        long until = System.currentTimeMillis() + durationMs;
+        suppressUntil.merge(uuid, until, Math::max);
     }
 }

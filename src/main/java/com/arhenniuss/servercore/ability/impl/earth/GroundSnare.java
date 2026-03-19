@@ -58,7 +58,12 @@ public class GroundSnare implements Ability {
         Player player = context.getPlayer();
         AbilityStats stats = config.getStats(Element.EARTH, AbilityType.SECONDARY);
         double reach = stats.reach();
-        Vector direction = player.getLocation().getDirection().setY(0).normalize();
+        Vector direction = player.getLocation().getDirection().setY(0);
+        if (direction.lengthSquared() > 0) {
+            direction.normalize();
+        } else {
+            direction = player.getLocation().getDirection(); // Fallback if looking straight down/up
+        }
 
         // Linear forward ground crack
         for (double d = 0.5; d <= reach; d += 0.3) {

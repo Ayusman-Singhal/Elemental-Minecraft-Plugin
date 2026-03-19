@@ -8,6 +8,8 @@ import com.arhenniuss.servercore.ability.TargetMode;
 import com.arhenniuss.servercore.element.Element;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -53,12 +55,17 @@ public class EarthPassive implements PassiveAbility {
     public void onTick(AbilityContext context) {
         Player player = context.getPlayer();
 
+        // Apply Resistance (300 ticks = 15s, refreshed every second to avoid blinking)
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.DAMAGE_RESISTANCE, 300, 0, true, false, true));
+
         // Occasional stone dust particles (~25% chance per tick cycle)
         if (ThreadLocalRandom.current().nextFloat() < 0.25f) {
             player.getWorld().spawnParticle(
                     Particle.BLOCK_CRACK,
                     player.getLocation().add(0, 0.3, 0),
-                    2, 0.2, 0.1, 0.2, 0.01);
+                    2, 0.2, 0.1, 0.2, 0.01,
+                    org.bukkit.Material.STONE.createBlockData());
         }
     }
 }

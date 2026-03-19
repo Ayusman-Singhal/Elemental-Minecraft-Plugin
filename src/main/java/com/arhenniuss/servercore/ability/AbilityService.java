@@ -49,6 +49,8 @@ import java.util.Set;
  */
 public class AbilityService {
 
+    private static final double MIN_DOUBLE_JUMP_VERTICAL = 1.8; // Increased for better jump height
+
     private final AbilityRegistry registry;
     private final CooldownManager cooldownManager;
     private final PlayerDataManager playerDataManager;
@@ -59,6 +61,7 @@ public class AbilityService {
     private final ReactionService reactionService;
     private final ReachHelper reachHelper;
     private final JavaPlugin plugin;
+    private final com.arhenniuss.servercore.listener.ability.MobilityLandingListener mobilityLandingListener;
 
     /** ReactionExecutor that routes damage through internal methods. */
     private final ReactionExecutor reactionExecutor;
@@ -67,7 +70,8 @@ public class AbilityService {
             PlayerDataManager playerDataManager, DamageAttributionManager damageManager,
             AbilityDebugManager debugManager, AbilityBalanceConfig config,
             StatusService statusService, ReactionService reactionService,
-            ReachHelper reachHelper, JavaPlugin plugin) {
+            ReachHelper reachHelper, JavaPlugin plugin,
+            com.arhenniuss.servercore.listener.ability.MobilityLandingListener mobilityLandingListener) {
         this.registry = registry;
         this.cooldownManager = cooldownManager;
         this.playerDataManager = playerDataManager;
@@ -78,6 +82,7 @@ public class AbilityService {
         this.reactionService = reactionService;
         this.reachHelper = reachHelper;
         this.plugin = plugin;
+        this.mobilityLandingListener = mobilityLandingListener;
 
         // Build the executor once — delegates to internal methods
         this.reactionExecutor = new ReactionExecutor() {
@@ -179,6 +184,12 @@ public class AbilityService {
                 velocity = velocity.clone().multiply(0.7);
             }
 
+            // Ensure mobility jump height remains high enough for the intended 5+ block jump.
+            if (ability.getType() == AbilityType.MOBILITY
+                    && velocity.getY() < MIN_DOUBLE_JUMP_VERTICAL) {
+                velocity = velocity.clone().setY(MIN_DOUBLE_JUMP_VERTICAL);
+            }
+
             // Play visual effects (only after status gate passes)
             ability.playEffects(context);
 
@@ -187,6 +198,9 @@ public class AbilityService {
             if (context.getImmunityTicks() > 0) {
                 applyTemporaryImmunity(player, context.getImmunityTicks());
             }
+
+            // Track mobility use for landing damage detection
+            mobilityLandingListener.onMobilityUsed(player);
         } else {
             // Play visual effects for non-mobility abilities
             ability.playEffects(context);
@@ -293,73 +307,170 @@ public class AbilityService {
                 }
             }
 
-            // 3. Apply knockback
-            if (stats.knockback() > 0) {
-                Vector knockback = target.getLocation().toVector()
-                        .subtract(attacker.getLocation().toVector())
-                        .normalize()
-                        .multiply(stats.knockback())
-                        .setY(0.4);
-                target.setVelocity(target.getVelocity().add(knockback));
+            // 3. Apply knockback with vertical component for more impact
+            boolean isEarthPlayer = (target instanceof Player p) && (playerDataManager.getElement(p.getUniqueId()) == Element.EARTH);
+            
+            if (stats.knockback() > 0 && !isEarthPlayer) {
+                Vector diff = target.getLocation().toVector().subtract(attacker.getLocation().toVector());
+                if (diff.lengthSquared() > 0) {
+                    Vector knockback = diff.normalize()
+                            .multiply(stats.knockback())
+                            .setY(0.6); // Increased vertical knockback for more impact
+                    if (Double.isFinite(knockback.getX()) && Double.isFinite(knockback.getY()) && Double.isFinite(knockback.getZ())) {
+                        target.setVelocity(target.getVelocity().add(knockback));
+                    }
+                }
+                
+                // Add screen shake effect for high knockback abilities
+                if (stats.knockback() > 1.5) {
+                    // This would require a client-side plugin or packet manipulation
+                    // For now, we'll just add a visual cue with particles
+                    target.getWorld().spawnParticle(
+                            org.bukkit.Particle.EXPLOSION_LARGE,
+                            target.getLocation(),
+                            1,
+                            0, 0, 0,
+                            0);
+                }
             }
 
             // 4. Apply element-specific statuses via StatusService
             Set<StatusType> statusesApplied = EnumSet.noneOf(StatusType.class);
 
             if (ability.getElement() == Element.FIRE) {
-                int burnTicks = (ability.getType() == AbilityType.SPECIAL_CHARGED) ? 80 : 40;
+                int burnTicks = (ability.getType() == AbilityType.SPECIAL_CHARGED) ? 120 : 60;
                 statusService.applyStatus(target, StatusType.BURNING, burnTicks);
                 statusesApplied.add(StatusType.BURNING);
+                
+                // Visual effect for burning
+                target.getWorld().spawnParticle(
+                        org.bukkit.Particle.FLAME,
+                        target.getLocation().add(0, 1, 0),
+                        10,
+                        0.3, 0.5, 0.3,
+                        0.05);
             }
 
             if (ability.getElement() == Element.WATER) {
                 if (ability.getType() == AbilityType.BASIC
                         || ability.getType() == AbilityType.SECONDARY) {
-                    statusService.applyStatus(target, StatusType.WET, 40);
+                    statusService.applyStatus(target, StatusType.WET, 80); // Longer duration
                     statusesApplied.add(StatusType.WET);
+                    
+                    // Visual effect for wet
+                    target.getWorld().spawnParticle(
+                            org.bukkit.Particle.DRIP_WATER,
+                            target.getLocation().add(0, 1, 0),
+                            15,
+                            0.3, 0.5, 0.3,
+                            0);
                 }
             }
 
             if (ability.getElement() == Element.EARTH) {
                 if (ability.getType() == AbilityType.BASIC) {
                     // Stone Strike: brief root
-                    statusService.applyStatus(target, StatusType.ROOTED, 20);
+                    statusService.applyStatus(target, StatusType.ROOTED, 40); // Longer duration
                     statusesApplied.add(StatusType.ROOTED);
+                    
+                    // Visual effect for rooted
+                    target.getWorld().spawnParticle(
+                            org.bukkit.Particle.BLOCK_CRACK,
+                            target.getLocation().add(0, 0.1, 0),
+                            20,
+                            0.3, 0.1, 0.3,
+                            0,
+                            org.bukkit.Material.STONE.createBlockData());
                 } else if (ability.getType() == AbilityType.SECONDARY) {
                     // Fault Line: slow + minor knockup
-                    statusService.applyStatus(target, StatusType.SLOWED, 40);
+                    statusService.applyStatus(target, StatusType.SLOWED, 80); // Longer duration
                     statusesApplied.add(StatusType.SLOWED);
-                    target.setVelocity(target.getVelocity().add(new Vector(0, 0.4, 0)));
+                    if (!isEarthPlayer) {
+                        target.setVelocity(target.getVelocity().add(new Vector(0, 0.6, 0))); // Stronger knockup
+                    }
                 } else if (ability.getType() == AbilityType.SPECIAL_SIMPLE) {
                     // Seismic Slam: root + strong knockup
-                    statusService.applyStatus(target, StatusType.ROOTED, 20);
+                    statusService.applyStatus(target, StatusType.ROOTED, 60); // Longer duration
                     statusesApplied.add(StatusType.ROOTED);
-                    target.setVelocity(target.getVelocity().add(new Vector(0, 0.7, 0)));
+                    if (!isEarthPlayer) {
+                        target.setVelocity(target.getVelocity().add(new Vector(0, 1.0, 0))); // Stronger knockup
+                    }
+                    
+                    // Visual effect for seismic slam
+                    target.getWorld().spawnParticle(
+                            org.bukkit.Particle.EXPLOSION_NORMAL,
+                            target.getLocation(),
+                            15,
+                            0.5, 0.3, 0.5,
+                            0.1);
                 } else if (ability.getType() == AbilityType.SPECIAL_CHARGED) {
                     // Tectonic Break: root + strong knockup
-                    statusService.applyStatus(target, StatusType.ROOTED, 30);
+                    statusService.applyStatus(target, StatusType.ROOTED, 100); // Much longer duration
                     statusesApplied.add(StatusType.ROOTED);
-                    target.setVelocity(target.getVelocity().add(new Vector(0, 0.8, 0)));
+                    if (!isEarthPlayer) {
+                        target.setVelocity(target.getVelocity().add(new Vector(0, 1.2, 0))); // Stronger knockup
+                    }
+                    
+                    // Visual effect for tectonic break
+                    target.getWorld().spawnParticle(
+                            org.bukkit.Particle.EXPLOSION_LARGE,
+                            target.getLocation(),
+                            3,
+                            0.5, 0.5, 0.5,
+                            0);
                 }
             }
 
             if (ability.getElement() == Element.AIR) {
                 if (ability.getType() == AbilityType.BASIC) {
                     // Air Cutter: brief slow
-                    statusService.applyStatus(target, StatusType.SLOWED, 10);
+                    statusService.applyStatus(target, StatusType.SLOWED, 30); // Moderate duration
                     statusesApplied.add(StatusType.SLOWED);
                 } else if (ability.getType() == AbilityType.SECONDARY) {
-                    // Updraft: knockup (small lift)
-                    target.setVelocity(target.getVelocity().add(new Vector(0, 0.5, 0)));
+                    // Updraft: knockup (strong lift)
+                    if (!isEarthPlayer) {
+                        target.setVelocity(target.getVelocity().add(new Vector(0, 0.8, 0))); // Stronger knockup
+                    }
+                    
+                    // Visual effect for updraft
+                    target.getWorld().spawnParticle(
+                            org.bukkit.Particle.CLOUD,
+                            target.getLocation().add(0, 0.5, 0),
+                            10,
+                            0.3, 0.5, 0.3,
+                            0.05);
                 } else if (ability.getType() == AbilityType.SPECIAL_SIMPLE) {
                     // Cyclone Spin: outward push
-                    Vector push = target.getLocation().toVector()
-                            .subtract(attacker.getLocation().toVector())
-                            .normalize().multiply(1.2).setY(0.3);
-                    target.setVelocity(target.getVelocity().add(push));
+                    Vector diff = target.getLocation().toVector().subtract(attacker.getLocation().toVector());
+                    if (diff.lengthSquared() > 0) {
+                        Vector push = diff.normalize().multiply(1.5).setY(0.5); // Stronger push
+                        if (Double.isFinite(push.getX()) && Double.isFinite(push.getY()) && Double.isFinite(push.getZ())) {
+                            if (!isEarthPlayer) {
+                                target.setVelocity(target.getVelocity().add(push));
+                            }
+                        }
+                    }
+                    
+                    // Visual effect for cyclone
+                    target.getWorld().spawnParticle(
+                            org.bukkit.Particle.CLOUD,
+                            target.getLocation().add(0, 1, 0),
+                            20,
+                            0.5, 0.5, 0.5,
+                            0.1);
                 } else if (ability.getType() == AbilityType.SPECIAL_CHARGED) {
                     // Skyfall: knockup slam
-                    target.setVelocity(target.getVelocity().add(new Vector(0, 0.6, 0)));
+                    if (!isEarthPlayer) {
+                        target.setVelocity(target.getVelocity().add(new Vector(0, 1.0, 0))); // Stronger knockup
+                    }
+                    
+                    // Visual effect for skyfall
+                    target.getWorld().spawnParticle(
+                            org.bukkit.Particle.EXPLOSION_HUGE,
+                            target.getLocation(),
+                            1,
+                            0, 0, 0,
+                            0);
                 }
             }
 
@@ -400,40 +511,108 @@ public class AbilityService {
         if (targets.isEmpty())
             return new ReactionResult();
 
-        // Phase 1: Pull inward
+        // Phase 1: Pull inward with visual effects
         for (LivingEntity target : targets) {
-            Vector pullDirection = player.getLocation().toVector()
-                    .subtract(target.getLocation().toVector())
-                    .normalize()
-                    .multiply(0.8)
-                    .setY(0.3);
-            target.setVelocity(target.getVelocity().add(pullDirection));
+            // Check if target is still valid
+            if (target == null || target.isDead() || !target.isValid()) {
+                continue;
+            }
+            
+            Vector playerLoc = player.getLocation().toVector();
+            Vector targetLoc = target.getLocation().toVector();
+            
+            // Check if vectors are valid
+            if (Double.isFinite(playerLoc.getX()) && Double.isFinite(playerLoc.getY()) && Double.isFinite(playerLoc.getZ()) &&
+                Double.isFinite(targetLoc.getX()) && Double.isFinite(targetLoc.getY()) && Double.isFinite(targetLoc.getZ())) {
+                
+                Vector diff = playerLoc.subtract(targetLoc);
+                if (diff.lengthSquared() > 0) { // Avoid division by zero
+                    Vector pullDirection = diff.normalize()
+                            .multiply(1.2) // Stronger pull
+                            .setY(0.5); // More vertical pull
+                    
+                    // Check if pullDirection is valid
+                    if (Double.isFinite(pullDirection.getX()) && Double.isFinite(pullDirection.getY()) && Double.isFinite(pullDirection.getZ())) {
+                        target.setVelocity(target.getVelocity().add(pullDirection));
+                        
+                        // Visual effect for pull
+                        player.getWorld().spawnParticle(
+                                org.bukkit.Particle.DRIP_WATER,
+                                target.getLocation().add(0, 1, 0),
+                                15,
+                                0.3, 0.5, 0.3,
+                                0.1);
+                    }
+                }
+            }
         }
+        
+        // Sound effect for maelstrom activation
+        player.getWorld().playSound(player.getLocation(), org.bukkit.Sound.ENTITY_GUARDIAN_AMBIENT, 1.0f, 0.5f);
 
         // Phase 2: Damage + statuses + reactions + push outward (5 ticks later)
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            // Check if player is still valid
+            if (!player.isOnline()) {
+                return;
+            }
+            
+            // Visual effect for maelstrom explosion
+            player.getWorld().spawnParticle(
+                    org.bukkit.Particle.EXPLOSION_HUGE,
+                    player.getLocation().add(0, 1, 0),
+                    1,
+                    0, 0, 0,
+                    0);
+            
+            player.getWorld().playSound(player.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 1.5f, 0.5f);
+
             for (LivingEntity target : targets) {
-                if (target.isDead())
+                // Check if target is still valid
+                if (target == null || target.isDead() || !target.isValid()) {
                     continue;
+                }
 
                 // Snapshot statusesBefore
                 Set<StatusType> statusesBefore = statusService.getActiveStatuses(target);
 
-                // Damage
+                // Damage with visual effect
                 target.damage(stats.damage());
+                target.getWorld().playSound(target.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_HURT, 1.0f, 0.5f);
 
-                // Push outward
+                // Push outward with stronger force
                 if (stats.knockback() > 0) {
-                    Vector pushDirection = target.getLocation().toVector()
-                            .subtract(player.getLocation().toVector())
-                            .normalize()
-                            .multiply(stats.knockback())
-                            .setY(0.5);
-                    target.setVelocity(target.getVelocity().add(pushDirection));
+                    Vector playerLoc = player.getLocation().toVector();
+                    Vector targetLoc = target.getLocation().toVector();
+                    
+                    // Check if vectors are valid
+                    if (Double.isFinite(playerLoc.getX()) && Double.isFinite(playerLoc.getY()) && Double.isFinite(playerLoc.getZ()) &&
+                        Double.isFinite(targetLoc.getX()) && Double.isFinite(targetLoc.getY()) && Double.isFinite(targetLoc.getZ())) {
+                        
+                        Vector diff = targetLoc.subtract(playerLoc);
+                        if (diff.lengthSquared() > 0) { // Avoid division by zero
+                            Vector pushDirection = diff.normalize()
+                                    .multiply(stats.knockback() * 1.5) // Stronger push
+                                    .setY(0.8); // Higher vertical component
+                            
+                            // Check if pushDirection is valid
+                            if (Double.isFinite(pushDirection.getX()) && Double.isFinite(pushDirection.getY()) && Double.isFinite(pushDirection.getZ())) {
+                                target.setVelocity(target.getVelocity().add(pushDirection));
+                                
+                                // Visual effect for push
+                                target.getWorld().spawnParticle(
+                                        org.bukkit.Particle.WATER_WAKE,
+                                        target.getLocation().add(0, 1, 0),
+                                        20,
+                                        0.5, 0.5, 0.5,
+                                        0.2);
+                            }
+                        }
+                    }
                 }
 
-                // Maelstrom applies WET
-                statusService.applyStatus(target, StatusType.WET, 60);
+                // Maelstrom applies WET with longer duration
+                statusService.applyStatus(target, StatusType.WET, 120);
                 Set<StatusType> statusesApplied = EnumSet.of(StatusType.WET);
 
                 // Build ReactionContext and process
@@ -450,7 +629,7 @@ public class AbilityService {
                         target.getUniqueId(),
                         ability.getType());
             }
-        }, 5L);
+        }, 10L); // Increased delay for more anticipation
 
         // Return empty result since Phase 2 is async
         return new ReactionResult();

@@ -77,8 +77,12 @@ public class ReachHelper {
             if (entity instanceof Player p && p.getGameMode() == GameMode.SPECTATOR)
                 continue;
 
-            Vector toEntity = entity.getLocation().toVector()
-                    .subtract(eyeLocation.toVector()).normalize();
+            Vector diff = entity.getLocation().toVector().subtract(eyeLocation.toVector());
+            if (diff.lengthSquared() == 0) {
+                targets.add(living);
+                continue;
+            }
+            Vector toEntity = diff.normalize();
             double dot = direction.dot(toEntity);
 
             if (dot >= cosAngle) {

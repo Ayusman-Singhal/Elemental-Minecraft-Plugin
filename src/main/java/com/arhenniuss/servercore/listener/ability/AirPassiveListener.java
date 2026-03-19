@@ -27,7 +27,6 @@ public class AirPassiveListener implements Listener {
     private static final UUID SPEED_MODIFIER_UUID = UUID.fromString("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
     private static final String SPEED_MODIFIER_NAME = "air_light_frame";
     private static final double SPEED_BONUS = 0.05; // 5% of base 0.1 = 0.005
-    private static final double FALL_REDUCTION = 0.80; // 20% reduction
 
     private final PlayerDataManager playerDataManager;
 
@@ -57,7 +56,7 @@ public class AirPassiveListener implements Listener {
     }
 
     /**
-     * Reduce fall damage by 20% for Air players.
+     * Negate fall damage completely for Air players.
      */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onEntityDamage(EntityDamageEvent event) {
@@ -69,7 +68,7 @@ public class AirPassiveListener implements Listener {
             return;
 
         if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
-            event.setDamage(event.getDamage() * FALL_REDUCTION);
+            event.setCancelled(true);
         }
     }
 

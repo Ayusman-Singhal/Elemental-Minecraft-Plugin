@@ -58,7 +58,12 @@ public class StoneJab implements Ability {
         Player player = context.getPlayer();
         AbilityStats stats = config.getStats(Element.EARTH, AbilityType.BASIC);
         double reach = stats.reach();
-        Vector direction = player.getLocation().getDirection().setY(0).normalize();
+        Vector direction = player.getLocation().getDirection().setY(0);
+        if (direction.lengthSquared() > 0) {
+            direction.normalize();
+        } else {
+            direction = player.getLocation().getDirection();
+        }
 
         // Forward cone — stone crack particles fanning outward
         for (double d = 0.5; d <= reach; d += 0.4) {

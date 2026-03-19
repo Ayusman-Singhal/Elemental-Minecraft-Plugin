@@ -2,9 +2,9 @@ package com.arhenniuss.servercore.combat;
 
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages PvP combat tagging. Players are tagged for 15 seconds
@@ -24,7 +24,7 @@ public class CombatTagManager {
     private final Map<UUID, CombatTag> taggedPlayers;
 
     public CombatTagManager() {
-        this.taggedPlayers = new HashMap<>();
+        this.taggedPlayers = new ConcurrentHashMap<>();
     }
 
     /**
